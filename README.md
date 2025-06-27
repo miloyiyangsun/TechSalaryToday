@@ -46,7 +46,7 @@ TechSalaryToday/
 - **Multi-strategy scraping**: Both `requests + BeautifulSoup` and `Selenium` for dynamic content
 - **Intelligent content parsing**: Automatic section detection using regex patterns
 - **Robust error handling**: Comprehensive error recovery and retry mechanisms
-- **Translation support**: Automated Dutch-to-English translation using Google Translate
+- **Translation support**: Automated Dutch-to-English translation using Groq API (10x faster than traditional services)
 
 ### Data Processing
 
@@ -77,11 +77,20 @@ cd TechSalaryToday
 pip install -r requirements.txt
 ```
 
-3. Run the scraper PoC:
+3. Configure environment variables:
+
+```bash
+# Create .env file and add your API keys
+# See CONFIG.md for detailed instructions
+export GROQ_API_KEY=your-groq-api-key-here
+```
+
+4. Run the scraper PoC:
 
 ```bash
 cd POC/poc_scraper
-python poc_scraper.py
+python3 test_groq_translation.py  # Test translation first
+python3 poc_scraper.py            # Run main scraper
 ```
 
 ## 📊 Sample Output

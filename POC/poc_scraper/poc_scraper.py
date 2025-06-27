@@ -1,9 +1,94 @@
 import requests
 from bs4 import BeautifulSoup
-from deep_translator import GoogleTranslator
+from groq import Groq
 import time
 import re
 import json
+import os
+from pathlib import Path
+
+
+# Groq API Configuration
+# Load environment variables from .env file if it exists
+def load_env_file():
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        with open(env_path, "r") as f:
+            for line in f:
+                if line.strip() and not line.startswith("#"):
+                    key, value = line.strip().split("=", 1)
+                    os.environ[key] = value
+
+
+load_env_file()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "your-groq-api-key-here")
+
+
+class GroqTranslator:
+    """
+    A translation service using Groq API for fast, high-quality translations.
+    使用 Groq API 进行快速、高质量翻译的翻译服务。
+    """
+
+    def __init__(self, api_key=GROQ_API_KEY):
+        self.client = Groq(api_key=api_key)
+        self.model = "llama-3.1-8b-instant"  # Fast and efficient model
+
+    def translate_text(self, text, source_lang="nl", target_lang="en"):
+        """
+        Translate text using Groq API.
+        使用 Groq API 翻译文本。
+
+        Args:
+            text (str): Text to translate
+            source_lang (str): Source language code (default: "nl" for Dutch)
+            target_lang (str): Target language code (default: "en" for English)
+
+        Returns:
+            str: Translated text
+        """
+        if not text or not text.strip():
+            return text
+
+        # Create language names for better prompt
+        lang_names = {
+            "nl": "Dutch",
+            "en": "English",
+            "de": "German",
+            "fr": "French",
+            "es": "Spanish",
+            "it": "Italian",
+        }
+
+        source_name = lang_names.get(source_lang, source_lang)
+        target_name = lang_names.get(target_lang, target_lang)
+
+        prompt = f"""Translate the following {source_name} text to {target_name}. 
+Provide only the translation, no explanations or additional text.
+
+Text to translate:
+{text}
+
+Translation:"""
+
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=self.model,
+                temperature=0.1,  # Low temperature for consistent translations
+                max_tokens=1000,  # Adjust based on your needs
+            )
+
+            translated_text = chat_completion.choices[0].message.content.strip()
+            return translated_text
+
+        except Exception as e:
+            print(f"Translation error: {e}")
+            return text  # Return original text if translation fails
+
+
+# Initialize global translator instance
+groq_translator = GroqTranslator()
 
 # import time # We don't need time for this diagnostic step
 # from deep_translator import GoogleTranslator # We don't need translation for this diagnostic step
@@ -110,9 +195,7 @@ def stress_test_translation(url):
 
             # Translate the text
             try:
-                translated_text = GoogleTranslator(source="nl", target="en").translate(
-                    original_text
-                )
+                translated_text = groq_translator.translate_text(original_text)
                 print(f"翻译后英语内容 (Translated English):\n{translated_text}\n")
                 translated_count += 1
             except Exception as e:
@@ -192,9 +275,9 @@ def scrape_multiple_pages(base_url, num_pages_to_scrape):
                 job_title = card.select_one("a.jobTitle").get_text(strip=True)
 
                 try:
-                    translated_title = GoogleTranslator(
-                        source="nl", target="en"
-                    ).translate(job_title)
+                    translated_title = groq_translator.translate_text(
+                        job_title, source_lang="nl", target_lang="en"
+                    )
                     print(
                         f"  - Original: {job_title} -> Translated: {translated_title}"
                     )
@@ -273,7 +356,7 @@ def run_large_scale_translation_test(base_url, max_jobs_to_translate):
 
                 translation_start_time = time.time()
                 try:
-                    translated_text = GoogleTranslator(
+                    translated_text = groq_translator.translate_text(
                         source="nl", target="en"
                     ).translate(original_text)
                     translation_end_time = time.time()
@@ -363,9 +446,7 @@ def get_full_job_description_with_selenium(detail_page_url):
 
             # Translate to English
             print("Translating to English...")
-            translated_text = GoogleTranslator(source="auto", target="en").translate(
-                original_text
-            )
+            translated_text = groq_translator.translate_text(original_text)
 
             print("Translated job description:")
             print(translated_text)
@@ -703,13 +784,13 @@ def translate_structured_job_info(job_info):
     try:
         # Translate company info
         if "name" in job_info["company_info"]:
-            translated_info["company_info"]["name_en"] = GoogleTranslator(
+            translated_info["company_info"]["name_en"] = groq_translator.translate_text(
                 source="auto", target="en"
             ).translate(job_info["company_info"]["name"])
 
         # Translate job title
         if "title" in job_info["job_details"]:
-            translated_info["job_details"]["title_en"] = GoogleTranslator(
+            translated_info["job_details"]["title_en"] = groq_translator.translate_text(
                 source="auto", target="en"
             ).translate(job_info["job_details"]["title"])
 
@@ -717,10 +798,8 @@ def translate_structured_job_info(job_info):
         if "features" in job_info["job_details"]:
             translated_features = {}
             for key, value in job_info["job_details"]["features"].items():
-                translated_key = GoogleTranslator(source="auto", target="en").translate(
-                    key
-                )
-                translated_value = GoogleTranslator(
+                translated_key = groq_translator.translate_text(key)
+                translated_value = groq_translator.translate_text(
                     source="auto", target="en"
                 ).translate(value)
                 translated_features[f"{key} ({translated_key})"] = (
@@ -736,7 +815,7 @@ def translate_structured_job_info(job_info):
                 content_to_translate = (
                     content[:3000] if len(content) > 3000 else content
                 )
-                translated_content = GoogleTranslator(
+                translated_content = groq_translator.translate_text(
                     source="auto", target="en"
                 ).translate(content_to_translate)
                 translated_sections[section_name] = {
